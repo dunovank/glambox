@@ -85,6 +85,98 @@ def extract_modes(traces, parameters=None, precision=None, f_burn=0.5):
         return modes
 
 
+def gaze_influence_score(data):
+    """
+
+    """
+    import statsmodels.api as sm
+
+    df = data.copy()
+    n_items = len(
+        [c for c in data.columns.values if c.startswith('item_value_')])
+
+    # extract data
+    choice = np.zeros((df.shape[0], n_items))
+    choice[np.arange(df.shape[0]), df['choice'].values.astype('int32')] = 1
+    gaze = df[['gaze_{}'.format(i) for i in range(n_items)]].values
+    values = df[['item_value_{}'.format(i) for i in range(n_items)]].values
+    rel_gaze = np.zeros_like(gaze)
+    rel_values = np.zeros_like(values)
+    value_range = np.zeros_like(values)
+    for trial in range(values.shape[0]):
+        for item in range(n_items):
+            others = np.where(np.arange(n_items) != item)
+            rel_gaze[trial, item] = gaze[trial, item] - \
+                np.max(gaze[trial, others])
+            rel_values[trial, item] = values[trial, item] - \
+                np.mean(values[trial, others])
+            value_range[trial, item] = np.max(
+                values[trial, others]) - np.min(values[trial, others])
+
+    # create new df
+    df_tmp = pd.DataFrame(dict(subject=np.repeat(df['subject'].values, n_items),
+                               is_choice=choice.ravel(),
+                               value=values.ravel(),
+                               rel_value=rel_values.ravel(),
+                               value_range_others=value_range.ravel(),
+                               rel_gaze=rel_gaze.ravel(),
+                               gaze_pos=np.array(rel_gaze.ravel() > 0, dtype=np.bool)))
+
+    # estimate influence of item value on choice
+    data_out = pd.DataFrame()
+    for s, subject in enumerate(data['subject'].unique()):
+        subject_data = df_tmp[df_tmp['subject'] == subject].copy()
+
+        X = subject_data[['rel_value', 'value_range_others']]
+        X = sm.add_constant(X)
+        y = subject_data['is_choice']
+
+        logit = sm.Logit(y, X)
+        result = logit.fit(disp=0, method='lbfgs', maxiter=100)
+        predicted_pchoose = result.predict(X)
+
+        subject_data['corrected_choice'] = subject_data['is_choice'] - \
+            predicted_pchoose
+        data_out = pd.concat([data_out, subject_data])
+
+    # average corrected psychometric, given gaze
+    tmp = data_out.groupby(['subject', 'gaze_pos']
+                           ).corrected_choice.mean().unstack()
+    gaze_influence_score = (tmp[True] - tmp[False]).values
+
+    return gaze_influence_score
+
+
+def compute_behavioral_indices(data):
+    """
+    """
+    print('Adding "behavioral_indices" to GLAM.')
+    # set up dataframe
+    behavioral_indices = pd.DataFrame()
+    behavioral_indices['subject'] = data.subject.unique()
+
+    # average response times
+    behavioral_indices['mean_rt'] = data.groupby(['subject']).rt.mean().values
+
+    # average p(choose best item)
+    if 'best_chosen' not in data.columns.values:
+        n_items = len(
+            [c for c in data.columns.values if c.startswith('item_value_')])
+        values = data[['item_value_{}'.format(
+            i) for i in range(n_items)]].values
+        choices = data['choice'].values.astype(np.int)
+        best_chosen = (values[np.arange(values.shape[0]), choices] ==
+                       np.max(values, axis=1)).astype(np.int)
+        data['best_chosen'] = best_chosen
+    behavioral_indices['p_best_chosen'] = data.groupby(
+        ['subject']).best_chosen.mean().values
+
+    # gaze influence on P(choose item)
+    behavioral_indices['gaze_influence_score'] = gaze_influence_score(data)
+
+    return behavioral_indices
+
+
 def get_design(model):
     """
     Extract information about the experimental design
