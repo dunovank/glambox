@@ -85,6 +85,62 @@ def extract_modes(traces, parameters=None, precision=None, f_burn=0.5):
         return modes
 
 
+def compare(GLAM_1, GLAM_2, ic='WAIC', **kwargs):
+    """
+    """
+    # check model instances
+    if GLAM_1.type == GLAM_2.type:
+        if GLAM_1.type == 'individual':
+            if len(GLAM_1.model) == len(GLAM_2.model):
+                n_comparisons = len(GLAM_1.model)
+                continue
+            else:
+                raise TypeError('Number of models included in GLAM_1 and GLAM_2 needs to be the same.')
+            
+            if len(GLAM_1.trace) == len(GLAM_2.trace):
+                continue
+            else:
+                raise TypeError('Number of traces included in GLAM_1 and GLAM_2 needs to be the same.')
+        
+        elif (GLAM_1.type == 'hierarchical') or (GLAM_1.type == 'pooled'):
+            n_comparisons = 1
+            if isinstance(GLAM_1.model, pm.model.Model):
+                continue
+            else:
+                raise TypeError('GLAM_1 model is not a pymc model instance.')
+            if isinstance(GLAM_2.model, pm.model.Model):
+                continue
+            else:
+                raise TypeError('GLAM_2 model is not a pymc model instance.')
+        
+        else:
+            raise TypeError('GLAM_1 and GLAM_2 are of wrong type.')
+    
+    else:
+        raise TypeError('Comparison is only implemented for models of the same type.')
+
+
+    # compare models
+    ics = []
+    if GLAM_1.type == 'individual':
+        for (model_1, trace_1), (model_2, trace_2) in zip(zip(GLAM_1.model, GLAM_1.trace),
+                                                          zip(GLAM_2.model, GLAM_2.trace)):
+            ic_comp = pm.compare(dict(model_1=trace_1,
+                                      model_2=trace_2),
+                                 ic=ic, **kwargs)
+            ics.append(ic_comp)
+    else:
+        ic_comp = pm.compare(dict(GLAM_1.model=GLAM_1.trace,
+                                  GLAM_2.model=GLAM_2.trace),
+                             ic=ic, **kwargs)
+        ics.append(ic_comp)
+
+    if len(ics) == 1:
+        return ics[0]
+    else:
+        return ics
+
+
 def gaze_influence_score(data):
     """
 
