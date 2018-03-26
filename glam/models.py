@@ -209,7 +209,8 @@ class GLAM(object):
         self.data = new_data
 
 
-def make_models(df, kind, verbose=True, design=dict(v=None, gamma=None, s=None, tau=None, t0=None), behavioral_indices=None, **kwargs):
+def make_models(df, kind, verbose=True, design=dict(v=None, gamma=None, s=None, tau=None, t0=None), behavioral_indices=None, **kwargs
+):
 
     if kind == 'individual':
         data = glam.utils.format_data(df)

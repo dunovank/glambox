@@ -95,13 +95,15 @@ def compare(GLAM_1, GLAM_2, ic='WAIC', **kwargs):
                 n_comparisons = len(GLAM_1.model)
                 continue
             else:
-                raise TypeError('Number of models included in GLAM_1 and GLAM_2 needs to be the same.')
-            
+                raise TypeError(
+                    'Number of models included in GLAM_1 and GLAM_2 needs to be the same.')
+
             if len(GLAM_1.trace) == len(GLAM_2.trace):
                 continue
             else:
-                raise TypeError('Number of traces included in GLAM_1 and GLAM_2 needs to be the same.')
-        
+                raise TypeError(
+                    'Number of traces included in GLAM_1 and GLAM_2 needs to be the same.')
+
         elif (GLAM_1.type == 'hierarchical') or (GLAM_1.type == 'pooled'):
             n_comparisons = 1
             if isinstance(GLAM_1.model, pm.model.Model):
@@ -112,13 +114,13 @@ def compare(GLAM_1, GLAM_2, ic='WAIC', **kwargs):
                 continue
             else:
                 raise TypeError('GLAM_2 model is not a pymc model instance.')
-        
+
         else:
             raise TypeError('GLAM_1 and GLAM_2 are of wrong type.')
-    
-    else:
-        raise TypeError('Comparison is only implemented for models of the same type.')
 
+    else:
+        raise TypeError(
+            'Comparison is only implemented for models of the same type.')
 
     # compare models
     ics = []
